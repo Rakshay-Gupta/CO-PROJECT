@@ -50,6 +50,7 @@ J_Type = {
 "jal":"1101111"
 }
 
+# it is converting decimal numbers to binary numbers
 def decimaltobinary(num):
     if num==0:
         return "0"
@@ -59,3 +60,78 @@ def decimaltobinary(num):
         num=num//2
 
     return bin
+
+# it is converting signed numbers to binary with fixed number of bits
+def SignedBinary(val, bits):
+    if val < 0:  # converts a negative number into two's complement representation
+        val = (2**bits) + val
+    sb = decimaltobinary(val) # calling function that converts decimal to binary
+    if val >= 0:
+        while len(sb) < bits: # ensuring that the binary number has exactly bits length  
+            sb = '0' + sb
+    return sb # final binary value is returned
+
+# it is checking  whether a register name is valid
+def regChecking(r, line):
+    if r not in registers:
+        print("Error in line no.",line,":register",r,"doesn't exist")
+        exit() # stops the entire program
+
+# checking whether an immediate value is within the allowed bit range
+def immChecking(val, bits, line):
+    Min = -(2**(bits-1))  # calculating min
+    Max = (2**(bits-1))-1  # calculating max
+    if (val > Max or val < Min):  # checking the range and print error if val is outside allowed range
+        print("Error in line no.",line,":immediate value not in range")
+        exit() # stops the entire program
+
+# reading the assembly program file 
+with open("file.txt",'r') as f:
+    lines = f.readlines()
+
+# first pass : to find labels
+
+labels = {}  # dictionary to store label  with their addresses
+pc = 0  
+
+for line in lines:
+    line = line.strip() # Removes spaces and newline characters
+
+    if line == "": # skip empty lines
+        continue
+    if ':' in line: # checking for labels
+        lab = line.split(':')[0].strip()   # extracting label names
+        labels[lab] = pc # store label address
+        line = line.split(':')[1].strip()   # removing label part from instruction
+        if line == "":
+            continue
+    pc+=4 # incrementing program counter by 4 bytes
+
+# second pass : for encode instructions
+
+binary = []  # stores generated binary codes
+halt = False   #  checks if halt instruction appears
+line_no = 0   #  tracks the line numbers
+pc = 0
+
+for line in lines:
+    line_no += 1
+    line = line.strip()  # Removes spaces and newline characters
+
+    if line == "":  # skip empty lines
+        continue
+    if ':' in line:
+        line = line.split(':')  #Splitting labels and instruction and then removing labels 
+        line = line[1].strip()
+        if line == "":
+            continue
+
+# replacing punctuations 
+line=line.replace(',',' ')
+line= line.replace('(',' ')
+line = line.replace(')',' ')
+
+instructions = line.split()   # spiltting instructions so that each part becomes accessible
+opcode = instructions[0] # extracting opcode
+
+
