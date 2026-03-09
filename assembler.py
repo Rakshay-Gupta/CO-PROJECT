@@ -1,3 +1,12 @@
+import sys
+
+if len(sys.argv) != 3:
+    print("Usage: python assembler.py <input_file.txt> <output_file.txt>")
+    sys.exit(1)
+
+input_filename = sys.argv[1]
+output_filename = sys.argv[2]
+
 registers = {
 "zero":"00000","ra":"00001","sp":"00010","gp":"00011","tp":"00100",
 "t0":"00101","t1":"00110","t2":"00111",
@@ -86,10 +95,13 @@ def immChecking(val, bits, line):
         exit() # stopcodes the entire program
 
 # reading the assembly program file 
-with open("file.txt",'r') as f:
-    lines = f.readlines()
+try:
+    with open(input_filename, 'r') as f:
+        lines = f.readlines()
+except FileNotFoundError:
+    print(f"Error: The file '{input_filename}' was not found.")
+    sys.exit(1)
 
-# first pass : to find labels
 
 labels= {}  # dictionary to store label  with their addresses
 pc =0  
@@ -168,7 +180,7 @@ for line in lines:
 
         regChecking(rd,line_no)
         regChecking(rs1,line_no)     
-        regChecking(imm,12,line_no)     # checking error in immediate value whether it is in required bits or not
+        immChecking(imm,12,line_no)    # checking error in immediate value whether it is in required bits or not
 
         funct3,opcode=I_Type[operation]   # To get values of funct3 for particular value of opcode in R-Type
 
@@ -182,7 +194,7 @@ for line in lines:
         rs1=instructions[3]
 
         regChecking(rs1,line_no)
-        regChecking(rs2,line_no)     # checking error in rs2 whether it is in required bits or not
+        regChecking(rs2,line_no)    # checking error in rs2 whether it is in required bits or not
         regChecking(imm,12,line_no)
 
         funct3,opcode=S_Type[operation]
@@ -271,14 +283,11 @@ if(last!="00000000000000000000000001100011"): #checking whether the last matches
     print("Error: Virtual Halt must be present at the end")
     exit()
 
-
-output=open("assembled.txt","w")
-
-for b in binary:
-    output.write(b+"\n")
-
-output.close()
-
-print("Assembly Successful Converted To Binary ")                                                                                             # combining the bits obtained by splitting bits(immediate)
-
-      
+try:
+    with open(output_filename, "w") as output:
+        for b in binary:
+            output.write(b + "\n")
+    print(f"Assembly Successful! Binary saved to '{output_filename}'.")
+except IOError:
+    print(f"Error: Could not write to file '{output_filename}'.")
+    sys.exit(1)
