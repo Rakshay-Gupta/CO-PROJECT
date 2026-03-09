@@ -131,7 +131,7 @@ for line in lines:
     line= line.replace('(',' ')
     line = line.replace(')',' ')
     
-    instructions = line.split()   # spiltting instructionsions so that each part becomes accessible
+    instructions = line.split()   # spiltting each line so that each part becomes accessible
     operation = instructions[0] # extracting operations to be implemented on operands
 
     if operation in R_Type:          
@@ -218,6 +218,67 @@ for line in lines:
         funct3,opcode=B_Type[operation]
 
         code = imm[0]+imm[2:8]+registers[rs2]+registers[rs1]+funct3+imm[8:12]+imm[1]+opcode   # converting B-Type instructions into 32-bit binary after after 
-                                                                                                # combining the bits obtained by splitting bits(immediate)
+                  
+    elif operation in U_Type: 
 
-    
+        rd=instructions[1]
+        imm=int(instructions[2]) #geeting the imm value from the line and making it an integer
+
+        regChecking(rd,line_no)
+        immChecking(imm,20,line_no)
+
+        opcode=U_Type[operation] 
+
+        code = SignedBinary(imm,20)+registers[rd]+opcode
+
+    elif operation in J_Type:
+
+        rd=instructions[1]
+        label=instructions[2] 
+
+        if label not in labels:
+            print("Error in line",line_no,": label is not defined")
+            exit()
+
+        regChecking(rd,line_no)
+
+        offset = labels[label]-pc #calculating the offset
+
+        immChecking(offset,20,line_no)
+        imm=SignedBinary(offset,21) #getting the correct 21 bit binary 
+
+        opcode=J_Type[operation]
+
+        code = imm[0]+imm[10:20]+imm[9]+imm[1:9]+registers[rd]+opcode
+
+    else:
+        print("Error in line",line_no,": invalid instruction")
+        exit()
+
+    if(operation=="beq" and instructions[1]=="zero" and instructions[2]=="zero" and instructions[3]=="0"):
+        halt=True
+
+    binary.append(code)
+    pc+=4
+
+if not halt:
+    print("Error: Virtual Halt is Missing") 
+    exit()
+
+last=binary[-1] #getting the last line from the binary file  
+
+if(last!="00000000000000000000000001100011"): #checking whether the last matches with the halt statment 
+    print("Error: Virtual Halt must be present at the end")
+    exit()
+
+
+output=open("assembled.txt","w")
+
+for b in binary:
+    output.write(b+"\n")
+
+output.close()
+
+print("Assembly Successful Converted To Binary ")                                                                                             # combining the bits obtained by splitting bits(immediate)
+
+      
