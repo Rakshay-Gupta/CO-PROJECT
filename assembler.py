@@ -170,7 +170,7 @@ for line in lines:
         regChecking(rs1,line_no)     
         regChecking(imm,12,line_no)     # checking error in immediate value whether it is in required bits or not
 
-        funct3,opcode=I_Type[operation]   # to get values of funct3 for particular value of opcode in R-Type
+        funct3,opcode=I_Type[operation]   # To get values of funct3 for particular value of opcode in R-Type
 
 
         code = SignedBinary(imm,12)+registers[rs1]+funct3+registers[rd]+opcode  # converting I-Type instructions into 32-bit binary 
