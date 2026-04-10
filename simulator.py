@@ -250,7 +250,7 @@ class RISCVSimulator:
             instr_index=self.pc//4
             if instr_index>=len(self.program_memory):
                 sys.stderr.write(f"Error: PC 0x{self.pc:08X} is outside program memory.\n")
-                self._terminate_with_error()
+                self.terminate()
             instruction=self.program_memory[instr_index]
             if self.is_virtual_halt(instruction):
                 self.record_state()
