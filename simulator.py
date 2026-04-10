@@ -85,3 +85,69 @@ class RISCVSimulator:
         if 0x00000100<=addr<=0x0000017F:
             return self.stack_memory[(addr-0x00000100)//4]
         return 0
+    def sw(self,addr,value):
+        addr =self.unsigned_32(addr) #making addr 32 bit
+        value=self.unsigned_32(value) #making value 32 bit 
+        if 0x00010000<=addr<=0x0001007C: # checking if address within data memory range 
+            self.data_memory[(addr-0x00010000)//4]=value
+        elif 0x00000100<=addr<=0x0000017F: # checking if address within stack memory range 
+            self.stack_memory[(addr-0x00000100)//4]=value
+
+    def execute_r_type(self,decoded):
+        rs1,rs2,rd=decoded['rs1'],decoded['rs2'],decoded['rd']
+        f3,f7=decoded['funct3'],decoded['funct7']
+        v1=self.registers[rs1]
+        v2=self.registers[rs2]
+        #operations 
+        if   f3==0x0 and f7==0x00: result=self.unsigned_32(v1+v2) #add
+        elif f3==0x0 and f7==0x20: result=self.unsigned_32(v1-v2) #sub 
+        elif f3==0x1 and f7==0x00: result=self.unsigned_32(v1<<(v2 & 0x1F)) #sll
+        elif f3==0x2 and f7==0x00: result=1 if self.signed_32(v1)<self.signed_32(v2) else 0 #slt
+        elif f3==0x3 and f7==0x00: result=1 if v1<v2 else 0 #sltu
+        elif f3==0x4 and f7==0x00: result=v1 ^ v2 #xor
+        elif f3==0x5 and f7==0x00: result=v1>>(v2 & 0x1F) #srl
+        elif f3==0x5 and f7==0x20: result=self.unsigned_32(self.signed_32(v1)>>(v2 & 0x1F))#sra
+        elif f3==0x6 and f7==0x00: result=v1 | v2 #or
+        elif f3==0x7 and f7==0x00: result=v1 & v2 #and
+        else:
+            raise SystemExit(f"Error: unknown R-type f3={f3} f7={f7} at PC=0x{self.pc:08X}")
+        
+        if rd!=0:
+            self.registers[rd]=result
+        self.pc+=4 #pc increment 
+
+    def execute_i_type(self,decoded):
+        rs1,rd,f3=decoded['rs1'],decoded['rd'],decoded['funct3']
+        instr=decoded['instr']
+        imm=self.signExtending((instr>>20) & 0xFFF,12)  # extending the last 12 bits 
+        v1=self.registers[rs1]
+        opcode=decoded['opcode']
+        if opcode==0x03: #load instructions 
+            if f3==0x2:
+                addr=self.unsigned_32(v1+imm)
+                self.checkMem(addr,'load')
+                val=self.lw(addr)
+                if rd!=0:
+                    self.registers[rd]=val
+
+        elif opcode==0x13: #arithmetic immediates
+            if f3==0x0: 
+                result=self.unsigned_32(v1+imm)
+                if rd!=0:
+                    self.registers[rd]=result
+            elif f3==0x3:
+                result=1 if v1<self.unsigned_32(imm) else 0
+                if rd!=0:
+                    self.registers[rd]=result
+       
+        elif opcode==0x67:#jalr
+            if f3==0x0:
+                ret_addr=self.unsigned_32(self.pc+4)
+                target=self.unsigned_32(v1+imm) & 0xFFFFFFFE
+                if rd!=0:
+                    self.registers[rd]=ret_addr
+                self.pc=target
+                return
+        else:
+            raise SystemExit(f"Error: unknown I-type opcode 0x{opcode:02X} at PC=0x{self.pc:08X}")
+        self.pc+=4
