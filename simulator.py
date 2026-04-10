@@ -79,7 +79,7 @@ class RISCVSimulator:
 
 # Loads a 32 bit word from memory
     def lw(self,addr):
-        addr=self.to_unsigned_32(addr)
+        addr=self.unsigned_32(addr)
         if 0x00010000<=addr<=0x0001007C:
             return self.data_memory[(addr-0x00010000)//4]
         if 0x00000100<=addr<=0x0000017F:
@@ -157,13 +157,13 @@ class RISCVSimulator:
         instr=decoded['instr']
         imm_lo=(instr>> 7) & 0x1F
         imm_hi=(instr>>25) & 0x7F
-        imm=self.sign_extend((imm_hi<<5) | imm_lo,12)
+        imm=self.signExtending((imm_hi<<5) | imm_lo,12)
         v1=self.registers[rs1]
         v2=self.registers[rs2]
         if f3==0x2:
-            addr=self.to_unsigned_32(v1+imm)
-            self._check_mem_access(addr,'store')
-            self.store_word(addr,v2)
+            addr=self.unsigned_32(v1+imm)
+            self.checkMem(addr,'store')
+            self.sw(addr,v2)
         else:
             raise SystemExit(f"Error: unknown S-type f3={f3} at PC=0x{self.pc:08X}")
         self.pc+=4
@@ -175,7 +175,7 @@ class RISCVSimulator:
         imm_4_1 =(instr>> 8) & 0xF
         imm_10_5=(instr>>25) & 0x3F
         imm_12  =(instr>>31) & 0x1
-        imm=self.sign_extend(
+        imm=self.signExtending(
             (imm_12<<12) | (imm_11<<11) | (imm_10_5<<5) | (imm_4_1<<1),13
         )
         v1=self.registers[rs1]
@@ -189,7 +189,7 @@ class RISCVSimulator:
         else:
             raise SystemExit(f"Error: unknown B-type f3={f3} at PC=0x{self.pc:08X}")
         if taken:
-            self.pc=self.to_unsigned_32(self.pc+imm)
+            self.pc=self.unsigned_32(self.pc+imm)
         else:
             self.pc+=4
 #u tyoe wala code
@@ -202,7 +202,7 @@ class RISCVSimulator:
                 self.registers[rd]=imm
         elif decoded['opcode']==0x17:
             if rd!=0:
-                self.registers[rd]=self.to_unsigned_32(self.pc+imm)
+                self.registers[rd]=self.unsigned_32(self.pc+imm)
         else:
             raise SystemExit(f"Error: unknown U-type opcode at PC=0x{self.pc:08X}")
         self.pc+=4
@@ -214,14 +214,14 @@ class RISCVSimulator:
         imm_11   =(instr>>20) & 0x1
         imm_10_1 =(instr>>21) & 0x3FF
         imm_20   =(instr>>31) & 0x1
-        imm=self.sign_extend((imm_20<<20) | (imm_19_12<<12) | (imm_11<<11) | (imm_10_1<<1),21)
+        imm=self.signExtending((imm_20<<20) | (imm_19_12<<12) | (imm_11<<11) | (imm_10_1<<1),21)
         if rd!=0:
-            self.registers[rd]=self.to_unsigned_32(self.pc+4)
-        self.pc=self.to_unsigned_32(self.pc+imm)
+            self.registers[rd]=self.unsigned_32(self.pc+4)
+        self.pc=self.unsigned_32(self.pc+imm)
 
 #now starting the virtual halt function 
     def is_virtual_halt(self,instruction): 
-        d=self.decode_instruction(instruction)
+        d=self.instructionDecoding(instruction)
         if d['opcode']!=0x63 or d['funct3']!=0x0:
             return False
         if d['rs1']!=0 or d['rs2']!=0:
@@ -257,7 +257,7 @@ class RISCVSimulator:
                 halted=True
                 break
             #binary to dictionary stuff
-            decoded=self.decode_instruction(instruction)
+            decoded=self.instructionDecoding(instruction)
             opcode=decoded['opcode']
             #cchecking konsa function hai opcode ka
             if   opcode==0x33:               self.execute_r_type(decoded)
@@ -286,7 +286,7 @@ class RISCVSimulator:
 
 def main():
     sim=RISCVSimulator()
-    sim.load_program(sys.argv[1])
+    sim.programLoading(sys.argv[1])
     sim.execute(sys.argv[2])
     sim.write_trace(sys.argv[2])
 
