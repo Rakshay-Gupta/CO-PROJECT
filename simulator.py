@@ -326,7 +326,7 @@ class RISCVSimulator:
                 self.execute_r_type(decoded)
             elif(opcode in (0x03,0x13,0x67)): 
                 self.execute_i_type(decoded)
-            elif(opcode==0x23)):   
+            elif(opcode==0x23):   
                 self.execute_s_type(decoded)
             elif(opcode==0x63):   
                 self.execute_b_type(decoded)
