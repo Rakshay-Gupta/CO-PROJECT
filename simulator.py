@@ -111,7 +111,7 @@ class RISCVSimulator:
             else:
                 result=0
         elif(f3==0x3 and f7==0x00):
-            if(v1<v):           #sltu
+            if(v1<v2):           #sltu
                 result=1         
             else:
                 result=0
