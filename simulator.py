@@ -151,3 +151,77 @@ class RISCVSimulator:
         else:
             raise SystemExit(f"Error: unknown I-type opcode 0x{opcode:02X} at PC=0x{self.pc:08X}")
         self.pc+=4
+
+#now starting the virtual halt function 
+    def is_virtual_halt(self,instruction): 
+        d=self.decode_instruction(instruction)
+        if d['opcode']!=0x63 or d['funct3']!=0x0:
+            return False
+        if d['rs1']!=0 or d['rs2']!=0:
+            return False
+        n=d['instr']
+        return (((n>> 7) & 0x01)==0 and ((n>> 8) & 0x0F)==0 and ((n>>25) & 0x3F)==0 and ((n>>31) & 0x01)==0)
+
+    def record_state(self):
+        parts=[f"0b{self.pc:032b}"]
+        for i in range(32):
+            val=0 if i==0 else self.registers[i]
+            parts.append(f"0b{val:032b}")
+        self.trace.append(" ".join(parts)+" ")
+
+    def dump_memory(self):
+        for i in range(32):
+            addr=0x00010000+i*4
+            value=self.data_memory[i]
+            self.trace.append(f"0x{addr:08X}:0b{value:032b}")
+
+    def execute(self,output_file):
+        self._output_file=output_file
+        halted=False
+        #now onto the hardware part
+        for _ in range(10_000_000):
+            instr_index=self.pc//4
+            if instr_index>=len(self.program_memory):
+                sys.stderr.write(f"Error: PC 0x{self.pc:08X} is outside program memory.\n")
+                self._terminate_with_error()
+            instruction=self.program_memory[instr_index]
+            if self.is_virtual_halt(instruction):
+                self.record_state()
+                halted=True
+                break
+            #binary to dictionary stuff
+            decoded=self.decode_instruction(instruction)
+            opcode=decoded['opcode']
+            #cchecking konsa function hai opcode ka
+            if   opcode==0x33:               self.execute_r_type(decoded)
+            elif opcode in (0x03,0x13,0x67): self.execute_i_type(decoded)
+            elif opcode==0x23:               self.execute_s_type(decoded)
+            elif opcode==0x63:               self.execute_b_type(decoded)
+            elif opcode in (0x37,0x17):       self.execute_u_type(decoded)
+            elif opcode==0x6F:               self.execute_j_type(decoded)
+            else:
+                sys.stderr.write(f"Error hai : unknown opcode 0b{opcode:07b} at PC=0x{self.pc:08X}\n")
+                self._terminate_with_error()
+                #x0 cant be changed from its hardwired to 0.
+            self.registers[0]=0
+            self.record_state()
+
+        if halted:
+            self.dump_memory()
+
+    def write_trace(self,filename):
+        try:
+            with open(filename,'w') as f:
+                for line in self.trace:
+                    f.write(line+'\n')
+        except IOError as e:
+            raise SystemExit(f"Error writing trace to '{filename}': {e}")
+
+def main():
+    sim=RISCVSimulator()
+    sim.load_program(sys.argv[1])
+    sim.execute(sys.argv[2])
+    sim.write_trace(sys.argv[2])
+
+if __name__=="__main__":
+    main()
