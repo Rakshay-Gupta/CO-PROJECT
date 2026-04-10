@@ -1,5 +1,5 @@
 import sys
-
+#original
 class RISCVSimulator:
     def __init__(self): # initializing the simulator
         self.registers=[0]*32
@@ -104,11 +104,11 @@ class RISCVSimulator:
         elif f3==0x1 and f7==0x00: result=self.unsigned_32(v1<<(v2 & 0x1F)) #sll
         elif f3==0x2 and f7==0x00: result=1 if self.signed_32(v1)<self.signed_32(v2) else 0 #slt
         elif f3==0x3 and f7==0x00: result=1 if v1<v2 else 0 #sltu
-        elif f3==0x4 and f7==0x00: result=v1 ^ v2 #xor
+        elif f3==0x4 and f7==0x00: result=self.unsigned_32(v1 ^ v2) #xor
         elif f3==0x5 and f7==0x00: result=v1>>(v2 & 0x1F) #srl
         elif f3==0x5 and f7==0x20: result=self.unsigned_32(self.signed_32(v1)>>(v2 & 0x1F))#sra
-        elif f3==0x6 and f7==0x00: result=v1 | v2 #or
-        elif f3==0x7 and f7==0x00: result=v1 & v2 #and
+        elif f3==0x6 and f7==0x00: result=self.unsigned_32(v1 | v2) #or
+        elif f3==0x7 and f7==0x00: result=self.unsigned_32(v1 & v2) #and
         else:
             raise SystemExit(f"Error: unknown R-type f3={f3} f7={f7} at PC=0x{self.pc:08X}")
         
@@ -122,24 +122,48 @@ class RISCVSimulator:
         imm=self.signExtending((instr>>20) & 0xFFF,12)  # extending the last 12 bits 
         v1=self.registers[rs1]
         opcode=decoded['opcode']
-        if opcode==0x03: #load instructions 
-            if f3==0x2:
-                addr=self.unsigned_32(v1+imm)
-                self.checkMem(addr,'load')
-                val=self.lw(addr)
-                if rd!=0:
-                    self.registers[rd]=val
+        if opcode == 0x03:
+            if f3 == 0x2:                                   # LW
+                addr = self.unsigned_32(v1 + imm)
+                self.checkMem(addr, 'load')
+                val = self.lw(addr)
+                if rd != 0:
+                    self.registers[rd] = val
+            else:
+                raise SystemExit(
+                    f"Error: unsupported load funct3={f3} at PC=0x{self.pc:08X}"
+                )
 
-        elif opcode==0x13: #arithmetic immediates
-            if f3==0x0: 
-                result=self.unsigned_32(v1+imm)
-                if rd!=0:
-                    self.registers[rd]=result
-            elif f3==0x3:
-                result=1 if v1<self.unsigned_32(imm) else 0
-                if rd!=0:
-                    self.registers[rd]=result
-       
+        elif opcode == 0x13:
+            shamt = (instr >> 20) & 0x1F   # used by shift instructions
+            f7    = (instr >> 25) & 0x7F
+
+            if   f3 == 0x0:                                 # ADDI
+                result = self.unsigned_32(v1 + imm)
+            elif f3 == 0x2:                                 # SLTI
+                result = 1 if self.signed_32(v1) < imm else 0
+            elif f3 == 0x3:                                 # SLTIU
+                result = 1 if v1 < self.unsigned_32(imm) else 0
+            elif f3 == 0x4:                                 # XORI
+                result = self.unsigned_32(v1 ^ imm)
+            elif f3 == 0x6:                                 # ORI
+                result = self.unsigned_32(v1 | imm)
+            elif f3 == 0x7:                                 # ANDI
+                result = self.unsigned_32(v1 & imm)
+            elif f3 == 0x1 and f7 == 0x00:                 # SLLI
+                result = self.unsigned_32(v1 << shamt)
+            elif f3 == 0x5 and f7 == 0x00:                 # SRLI
+                result = v1 >> shamt
+            elif f3 == 0x5 and f7 == 0x20:                 # SRAI
+                result = self.unsigned_32(self.signed_32(v1) >> shamt)
+            else:
+                raise SystemExit(
+                    f"Error: unknown I-type arith funct3={f3} funct7={f7} at PC=0x{self.pc:08X}"
+                )
+
+            if rd != 0:
+                self.registers[rd] = result
+
         elif opcode==0x67:#jalr
             if f3==0x0:
                 ret_addr=self.unsigned_32(self.pc+4)
@@ -182,8 +206,8 @@ class RISCVSimulator:
         v2=self.registers[rs2]
         if   f3==0x0: taken=(v1==v2)
         elif f3==0x1: taken=(v1!=v2)
-        elif f3==0x4: taken=self.to_signed_32(v1)< self.to_signed_32(v2)
-        elif f3==0x5: taken=self.to_signed_32(v1)>=self.to_signed_32(v2)
+        elif f3==0x4: taken=self.signed_32(v1)< self.signed_32(v2)
+        elif f3==0x5: taken=self.signed_32(v1)>=self.signed_32(v2)
         elif f3==0x6: taken=v1<v2
         elif f3==0x7: taken=v1>=v2
         else:
@@ -227,7 +251,10 @@ class RISCVSimulator:
         if d['rs1']!=0 or d['rs2']!=0:
             return False
         n=d['instr']
-        return (((n>> 7) & 0x01)==0 and ((n>> 8) & 0x0F)==0 and ((n>>25) & 0x3F)==0 and ((n>>31) & 0x01)==0)
+        return (((n>> 7) & 0x01)==0 and 
+                ((n>> 8) & 0x0F)==0 and 
+                ((n>>25) & 0x3F)==0 and 
+                ((n>>31) & 0x01)==0)
 
     def record_state(self):
         parts=[f"0b{self.pc:032b}"]
@@ -268,7 +295,7 @@ class RISCVSimulator:
             elif opcode==0x6F:               self.execute_j_type(decoded)
             else:
                 sys.stderr.write(f"Error hai : unknown opcode 0b{opcode:07b} at PC=0x{self.pc:08X}\n")
-                self._terminate_with_error()
+                self.terminate()
                 #x0 cant be changed from its hardwired to 0.
             self.registers[0]=0
             self.record_state()
